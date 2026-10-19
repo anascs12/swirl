@@ -29,6 +29,7 @@ def _restore_env_for_children():
 
 def _prefer_xwayland():
     _restore_env_for_children()
+    _log_qt_messages()
     # Native Wayland does not let apps place a window at the pointer, so run
     # through XWayland when it is available (the user can still override this).
     if sys.platform.startswith("linux") and os.environ.get("WAYLAND_DISPLAY") and "QT_QPA_PLATFORM" not in os.environ:
@@ -67,6 +68,23 @@ def _start_crash_log() -> Path | None:
     sys.excepthook = excepthook
     _start_crash_log.file = fh
     return log
+
+
+def _log_qt_messages() -> None:
+    """Copy Qt's warnings and fatal errors into the crash log, so an abort while
+    starting (e.g. a platform plugin problem) says why."""
+    fh = getattr(_start_crash_log, "file", None)
+    if fh is None:
+        return
+    from PySide6.QtCore import QtMsgType, qInstallMessageHandler
+    names = {QtMsgType.QtWarningMsg: "warning", QtMsgType.QtCriticalMsg: "critical", QtMsgType.QtFatalMsg: "FATAL"}
+
+    def handler(kind, context, message):
+        if kind in names:
+            fh.write(f"qt {names[kind]}: {message}\n")
+            fh.flush()
+        sys.stderr.write(message + "\n")
+    qInstallMessageHandler(handler)
 
 
 def _exec(app) -> int:
@@ -279,4 +297,7 @@ def _run_studio(files: list[Path], tool_id: str | None) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:
+        sys.exit(0)

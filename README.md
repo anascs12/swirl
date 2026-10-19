@@ -85,7 +85,7 @@ swirl --run protect report.pdf --set password=s3cret --set confirm=s3cret
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-python -m pytest            # 56 tests: engine, toolkit, editor, Studio and wheel
+python -m pytest            # 57 tests: engine, toolkit, editor, Studio and wheel
 python -m swirl             # run from source
 ```
 

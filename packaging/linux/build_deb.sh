@@ -57,7 +57,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: amd64
-Maintainer: Swirl <hello@example.com>
+Maintainer: Anas Khan <anaskhanbjr84@gmail.com>
 Depends: libegl1, libxkbcommon-x11-0, libxcb-cursor0, libfontconfig1
 Recommends: ffmpeg, libreoffice-core, libreoffice-writer, pandoc
 Description: Convert files from a wheel at your cursor
