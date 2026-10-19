@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swirl"
+version = "0.1.0"
+description = "Convert files from a wheel at your cursor. Everything runs locally."
+requires-python = ">=3.10"
+dependencies = [
+  "PySide6>=6.6",
+  "Pillow>=10.0",
+  "pypdf>=6.0",
+  "pypdfium2>=4.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+swirl = "swirl.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["swirl*"]
+
+[tool.setuptools.package-data]
+swirl = ["assets/*.png", "assets/*.svg"]
+
+[tool.pytest.ini_options]
+filterwarnings = ["error::DeprecationWarning:swirl.*"]
