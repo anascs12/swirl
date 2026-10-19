@@ -39,8 +39,17 @@ Description: Convert files from a wheel at your cursor
  Everything runs on your computer; files never leave it.
 CONTROL
 
+cat > "$PKG/DEBIAN/preinst" <<'PREINST'
+#!/bin/sh
+# Stop a running Swirl (e.g. the bubble) so the old version isn't left handling files.
+pkill -f '^/opt/swirl/swirl' 2>/dev/null || true
+exit 0
+PREINST
+chmod 755 "$PKG/DEBIAN/preinst"
+
 cat > "$PKG/DEBIAN/postinst" <<'POSTINST'
 #!/bin/sh
+pkill -f '^/opt/swirl/swirl' 2>/dev/null || true
 echo "Swirl installed. Run 'swirl --install' (as your normal user) to add it to the right-click menu."
 POSTINST
 chmod 755 "$PKG/DEBIAN/postinst"
