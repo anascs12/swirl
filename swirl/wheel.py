@@ -83,10 +83,10 @@ class Wheel(QWidget):
             self.message = self._unsupported_message()
 
     def _unsupported_message(self) -> str:
-        kinds = {engine.kind_of(f) for f in self.files}
-        if len(kinds) > 1:
-            return "Pick files of one type"
-        return f"Can't convert {self.files[0].suffix or 'this file'}"
+        odd = next((f for f in self.files if engine.kind_of(f) is None), None)
+        if odd:
+            return f"Can't convert {odd.suffix or odd.name}"
+        return "Pick files of one type"
 
     def _place_at_cursor(self):
         pos = QCursor.pos()

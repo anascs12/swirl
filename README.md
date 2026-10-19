@@ -16,7 +16,8 @@ Nothing is uploaded: your files never leave your machine.
 
 **The wheel, for quick jobs.** Right-click files → *Convert with Swirl*, and a wheel of formats
 opens at your pointer. Click one and the converted copy is saved next to the original. Press
-**Tab** (or right-click) for tools such as compress, merge and strip metadata.
+**Tab** (or right-click) for tools such as compress, merge and strip metadata. Selecting a mix,
+such as a Word file and two PDFs, offers *PDF* and *Merge into one PDF*.
 Prefer drag and drop? Run the **Swirl Bubble** and drop files on it.
 
 **Swirl Studio, for everything else.** A full PDF toolkit in one window: pick a tool, drop files,
@@ -52,7 +53,7 @@ Download the installer for your system from the
 ### Ubuntu (22.04 and newer)
 
 ```bash
-sudo apt install ./swirl_0.1.3_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
+sudo apt install ./swirl_0.1.4_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
 swirl --install                              # adds "Convert with Swirl" under Scripts in the right-click menu
 ```
 
@@ -63,7 +64,7 @@ For OCR, also run `sudo apt install tesseract-ocr`.
 
 ### Windows 10 and 11
 
-Run **SwirlSetup-0.1.3.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
+Run **SwirlSetup-0.1.4.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
 under *Show more options*) and to *Send to*. Video and audio conversions need FFmpeg
 (`winget install Gyan.FFmpeg`), Office conversions need [LibreOffice](https://www.libreoffice.org/),
 OCR needs [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
@@ -88,7 +89,7 @@ swirl --run protect report.pdf --set password=s3cret --set confirm=s3cret
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-python -m pytest            # 57 tests: engine, toolkit, editor, Studio and wheel
+python -m pytest            # 60 tests: engine, toolkit, editor, Studio and wheel
 python -m swirl             # run from source
 ```
 

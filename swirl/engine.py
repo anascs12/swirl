@@ -370,6 +370,51 @@ def open_studio(files: list[Path]) -> list[Path]:
     return []
 
 
+# ── Mixed selections (e.g. a Word file and two PDFs) ──────────
+
+PDF_ABLE = {"pdf", "image", "document", "text"}
+
+
+def _to_pdf(src: Path, workdir: Path) -> Path:
+    """A PDF version of `src`, made inside `workdir` (PDFs are used as they are)."""
+    kind = kind_of(src)
+    if kind == "pdf":
+        return src
+    if kind in ("document", "text") and not tools.find("soffice"):
+        raise tools.ToolError(f"{src.name} needs LibreOffice installed")
+    copy = free_path(workdir, src.stem, src.suffix)
+    shutil.copy2(src, copy)
+    if kind == "image":
+        dest = beside(copy, ".pdf")
+        _open_image(copy).convert("RGB").save(dest, "PDF", resolution=150)
+        return dest
+    return (text_to_pdf if kind == "text" else _office_to("pdf", ".pdf"))([copy])[0]
+
+
+def mixed_to_pdf(files: list[Path]) -> list[Path]:
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for src in files:
+            if kind_of(src) == "pdf":
+                continue
+            dest = beside(src, ".pdf")
+            shutil.move(str(_to_pdf(src, Path(tmp))), dest)
+            out.append(dest)
+    return out
+
+
+def mixed_merge(files: list[Path]) -> list[Path]:
+    from pypdf import PdfWriter
+    writer = PdfWriter()
+    with tempfile.TemporaryDirectory() as tmp:
+        for f in files:
+            writer.append(_to_pdf(f, Path(tmp)))
+        dest = beside(files[0], ".pdf", "-merged")
+        with open(dest, "wb") as fh:
+            writer.write(fh)
+    return [dest]
+
+
 # ── Registry ──────────────────────────────────────────────────
 
 ACTIONS: list[Action] = [
@@ -407,6 +452,9 @@ ACTIONS: list[Action] = [
     # Text
     Action("txt-pdf", "PDF", "convert", {"text"}, text_to_pdf, needs=("soffice",)),
     Action("txt-docx", "DOCX", "convert", {"text"}, _pandoc_to(".docx"), needs=("pandoc",)),
+    # Mixed selections
+    Action("mix-pdf", "PDF", "convert", {"mixed"}, mixed_to_pdf),
+    Action("mix-merge", "Merge into one PDF", "tool", {"mixed"}, mixed_merge, multi=True, per_file=False),
     Action("txt-html", "HTML", "convert", {"text"}, _pandoc_to(".html"), needs=("pandoc",), skip_same_ext=(".html", ".htm")),
 ]
 
@@ -414,10 +462,18 @@ BY_ID = {a.id: a for a in ACTIONS}
 
 
 def actions_for(files: list[Path], group: str | None = None) -> list[Action]:
-    """Actions that apply to every file in the selection (all must share a kind)."""
+    """Actions that apply to every file in the selection.
+
+    Files of one kind get that kind's actions; a mix of PDFs, images, documents
+    and text gets the "mixed" ones (make PDFs, merge into one PDF).
+    """
     kinds = {kind_of(f) for f in files}
-    if len(kinds) != 1 or None in kinds:
+    if None in kinds or not kinds:
         return []
+    if len(kinds) > 1:
+        if not kinds <= PDF_ABLE:
+            return []
+        kinds = {"mixed"}
     kind = kinds.pop()
     exts = {f.suffix.lower() for f in files}
     result = []

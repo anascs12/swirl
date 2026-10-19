@@ -64,7 +64,7 @@ def test_kinds_and_menus(tmp_path):
     assert engine.kind_of(Path("a.unknown")) is None
     labels = [a.label for a in engine.actions_for([tmp_path / "x.png"], "convert")]
     assert "PNG" not in labels and "JPG" in labels          # no PNG → PNG
-    assert engine.actions_for([tmp_path / "a.png", tmp_path / "b.pdf"]) == []   # mixed kinds
+    assert engine.actions_for([tmp_path / "a.png", tmp_path / "b.mp3"]) == []   # kinds that never mix
     single = {a.id for a in engine.actions_for([tmp_path / "a.pdf"])}
     double = {a.id for a in engine.actions_for([tmp_path / "a.pdf", tmp_path / "b.pdf"])}
     assert "pdf-merge" not in single and "pdf-merge" in double
@@ -139,6 +139,30 @@ def test_documents(tmp_path):
     assert "Hello" in PdfReader(pdf).pages[0].extract_text()
     assert engine.perform(engine.BY_ID["txt-pdf"], [md])[0].exists()
     assert engine.perform(engine.BY_ID["doc-odt"], [docx])[0].suffix == ".odt"
+
+
+def test_mixed_images_and_pdfs(tmp_path, photo):
+    a = make_pdf(tmp_path / "a.pdf", 2)
+    assert {x.id for x in engine.actions_for([a, photo])} == {"mix-pdf", "mix-merge"}
+    assert engine.actions_for([a, tmp_path / "x.mp3"]) == []          # audio can't join a PDF
+    made = engine.perform(engine.BY_ID["mix-pdf"], [a, photo])
+    assert [p.name for p in made] == ["photo.pdf"]                    # the PDF is left alone
+    merged = engine.perform(engine.BY_ID["mix-merge"], [a, photo])[0]
+    assert merged.name == "a-merged.pdf" and len(PdfReader(merged).pages) == 3
+
+
+@needs_office
+def test_mixed_word_and_pdf_merge(tmp_path):
+    from docx import Document
+    doc = Document()
+    doc.add_paragraph("Hello from Word")
+    word = tmp_path / "Doc2.docx"
+    doc.save(word)
+    pdf = make_pdf(tmp_path / "Doc2.pdf", 2)
+    merged = engine.perform(engine.BY_ID["mix-merge"], [word, pdf])[0]
+    pages = PdfReader(merged).pages
+    assert len(pages) == 3 and "Hello from Word" in pages[0].extract_text()
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["Doc2-merged.pdf", "Doc2.docx", "Doc2.pdf"]
 
 
 def test_missing_tool_is_reported(monkeypatch, tmp_path):

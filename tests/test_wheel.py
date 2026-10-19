@@ -48,6 +48,15 @@ def test_unsupported_and_mixed_files(app, tmp_path):
     assert Wheel([tmp_path / "data.xyz"]).state == "error"
     mixed = Wheel([tmp_path / "a.png", tmp_path / "b.mp3"])
     assert mixed.state == "error" and "one type" in mixed.message
+    odd = Wheel([tmp_path / "a.pdf", tmp_path / "b.zip"])
+    assert odd.state == "error" and ".zip" in odd.message
+
+
+def test_word_and_pdfs_together_offer_pdf_actions(app, tmp_path):
+    w = Wheel([tmp_path / "Doc2.docx", tmp_path / "Doc2.pdf", tmp_path / "Doc2 (1).pdf"])
+    assert w.state == "choose" and [a.label for a in w.items] == ["PDF"]
+    w.toggle_group()
+    assert "Merge into one PDF" in [a.label for a in w.items]
 
 
 def test_renders_without_errors(app, tmp_path):
