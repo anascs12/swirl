@@ -215,6 +215,7 @@ class _Runner(QObject):
 
 class ToolPage(QWidget):
     back = Signal()
+    open_visual = Signal(object, object)   # tool, file
 
     def __init__(self, tool: Tool, files: list[Path] = ()):
         super().__init__()
@@ -265,7 +266,9 @@ class ToolPage(QWidget):
         panel.setMinimumWidth(340)
         right = QVBoxLayout(panel)
         right.setContentsMargins(20, 18, 20, 18)
-        if tool.options:
+        if tool.page:
+            right.addWidget(QLabel("Choose a PDF, then the editor opens with its pages."))
+        elif tool.options:
             form = QFormLayout()
             form.setLabelAlignment(Qt.AlignLeft)
             form.setVerticalSpacing(10)
@@ -282,6 +285,8 @@ class ToolPage(QWidget):
             right.addLayout(form)
         else:
             right.addWidget(QLabel("No settings needed."))
+        if tool.page:
+            self.files.setSelectionMode(QAbstractItemView.SingleSelection)
         right.addStretch()
         self.status = QLabel(wordWrap=True)
         right.addWidget(self.status)
@@ -289,7 +294,7 @@ class ToolPage(QWidget):
         right.addWidget(self.progress)
         self.results = QVBoxLayout()
         right.addLayout(self.results)
-        self.run_btn = QPushButton(tool.title, objectName="primary")
+        self.run_btn = QPushButton("Open editor" if tool.page else tool.title, objectName="primary")
         self.run_btn.clicked.connect(self.run)
         right.addWidget(self.run_btn)
         body.addWidget(panel, 2)
@@ -392,6 +397,9 @@ class ToolPage(QWidget):
             self.status.setText(f"Skipped {len(paths) - len(good)} file(s) this tool can't use.")
 
     def run(self):
+        if self.tool.page:
+            self.open_visual.emit(self.tool, self.files.paths()[0])
+            return
         while self.results.count():
             self.results.takeAt(0).widget().setParent(None)
         self.run_btn.setEnabled(False)
@@ -445,11 +453,39 @@ class Studio(QMainWindow):
             self.open_tool(pdftools.TOOL_BY_ID[tool_id])
 
     def open_tool(self, tool: Tool):
-        page = ToolPage(tool, self._files)
+        files = [f for f in self._files if tool.accepts_file(f)]
         self._files = []
+        if tool.page and files:
+            self.open_visual(tool, files[0])
+            return
+        page = ToolPage(tool, files)
         page.back.connect(lambda: self._go_home(page))
+        page.open_visual.connect(self.open_visual)
+        self._show(page)
+
+    def open_visual(self, tool: Tool, path: Path):
+        from .editor import FormPage, OrganizePage, PageEditor
+        try:
+            if tool.page == "organize":
+                page = OrganizePage(path)
+            elif tool.page == "forms":
+                page = FormPage(path)
+            else:
+                page = PageEditor(path, tool.page)
+        except Exception as exc:
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, tool.title, f"Couldn't open {path.name}: {exc}")
+            return
+        page.back.connect(lambda: self._go_home(page))
+        self._show(page)
+
+    def _show(self, page):
+        current = self.stack.currentWidget()
         self.stack.addWidget(page)
         self.stack.setCurrentWidget(page)
+        if current is not self.home and current is not None:
+            self.stack.removeWidget(current)
+            current.deleteLater()
 
     def _go_home(self, page):
         self.stack.setCurrentWidget(self.home)

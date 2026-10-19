@@ -10,10 +10,17 @@ a = Analysis(
     ["launcher.py"],
     pathex=[".."],
     datas=[("../swirl/assets", "swirl/assets")],
-    hiddenimports=["swirl.wheel", "swirl.bubble", "swirl.integrate", "pypdfium2_raw"],
+    hiddenimports=["swirl.wheel", "swirl.bubble", "swirl.integrate", "swirl.studio", "swirl.editor", "swirl.pdftools", "swirl.pdfedit", "pypdfium2_raw"],
     excludes=["tkinter", "numpy", *[f"PySide6.{m}" for m in excluded_qt]],
     noarchive=False,
 )
+# Drop Qt modules Swirl never loads (QML, Quick, WebEngine, virtual keyboard…): ~60 MB smaller.
+_UNUSED = ("Qt6Qml", "Qt6Quick", "Qt6VirtualKeyboard", "Qt6WebEngine", "Qt6Pdf", "Qt63D", "Qt6Multimedia",
+           "Qt6Charts", "Qt6DataVisualization", "Qt6ShaderTools", "Qt6Designer", "qml", "QtQuick", "virtualkeyboard",
+           "Qt6Sql", "Qt6Test", "Qt6OpenGLWidgets")
+a.binaries = [b for b in a.binaries if not any(u in b[0] for u in _UNUSED)]
+a.datas = [d for d in a.datas if not any(u in d[0] for u in ("qml", "translations/qtwebengine", "Qt6Quick"))]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz, a.scripts, [],

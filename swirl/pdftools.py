@@ -50,6 +50,7 @@ class Tool:
     options: list[Option] = field(default_factory=list)
     min_files: int = 1
     needs: tuple[str, ...] = ()
+    page: str | None = None   # visual tools open an editor instead of running directly
 
     def accepts_file(self, path: Path) -> bool:
         return path.suffix.lower() in self.accepts
@@ -719,6 +720,15 @@ def office_to_pdf(files, o):
     return [_soffice(f, "pdf", ".pdf") for f in files]
 
 
+def _visual(files, o):
+    raise RuntimeError("This tool opens in the editor")
+
+
+def ocr_tool(files, o):
+    from .pdfedit import ocr
+    return [ocr(f, language=o["language"]) for f in files]
+
+
 # ── Registry ──────────────────────────────────────────────────
 
 PAGES_ALL = Option("pages", "Pages", "pages", "all", hint="e.g. 1-3, 5, 8-last · 'all'")
@@ -764,6 +774,10 @@ TOOLS: list[Tool] = [
         Option("color", "Color", "text", "#d32f2f"),
         Option("placement", "Placement", "choice", "Over content", ("Over content", "Behind content")),
         PAGES_ALL]),
+    Tool("edit", "Edit PDF", "Add text, highlights, boxes, drawings and images.", "Edit", PDF, _visual, page="edit"),
+    Tool("sign", "Sign PDF", "Draw, type or upload your signature and place it.", "Edit", PDF, _visual, page="sign"),
+    Tool("organize", "Organize PDF", "Drag pages to reorder, rotate, delete or add blank pages.", "Organize", PDF, _visual, page="organize"),
+    Tool("forms", "Fill PDF forms", "Fill in a PDF form's fields and optionally lock them.", "Edit", PDF, _visual, page="forms"),
     Tool("metadata", "Edit metadata", "Change title and author, or remove all hidden info.", "Edit", PDF, edit_metadata, [
         Option("remove_all", "Remove all metadata", "bool", False),
         Option("title", "Title", "text", ""), Option("author", "Author", "text", ""),
@@ -774,6 +788,7 @@ TOOLS: list[Tool] = [
         Option("allow_print", "Allow printing", "bool", True),
         Option("allow_copy", "Allow copying text", "bool", False),
         Option("allow_edit", "Allow editing", "bool", False)]),
+    Tool("redact", "Redact PDF", "Permanently black out text and images.", "Security", PDF, _visual, page="redact"),
     Tool("unlock", "Unlock PDF", "Remove the password from a PDF you can open.", "Security", PDF, unlock, [
         Option("password", "Password", "password", "")]),
     # Convert from PDF
@@ -786,6 +801,9 @@ TOOLS: list[Tool] = [
         Option("fallback", "Include text lines when a page has no table", "bool", False)]),
     Tool("pdf2md", "PDF to Markdown", "Clean text with headings and tables, ready for notes or AI.", "From PDF", PDF, pdf_to_markdown),
     Tool("pdfa", "PDF to PDF/A", "Archive-safe PDF/A-2b for long-term storage.", "From PDF", PDF, pdf_to_pdfa, needs=("soffice",)),
+    Tool("ocr", "OCR PDF", "Make scanned PDFs searchable and selectable.", "Optimize", PDF, ocr_tool, [
+        Option("language", "Language", "choice", "eng", ("eng", "urd", "ara", "fra", "deu", "spa", "hin"),
+               hint="Extra languages need their Tesseract language pack")], needs=("tesseract",)),
     Tool("pdf2txt", "PDF to text", "Extract all the text.", "From PDF", PDF, pdf_to_text),
     Tool("pdfimages", "Extract images", "Save every image inside the PDF.", "From PDF", PDF, extract_images),
     # Convert to PDF

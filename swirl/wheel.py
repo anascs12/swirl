@@ -314,6 +314,9 @@ class Wheel(QWidget):
         QTimer.singleShot(close_after, self.close)
 
     def _on_done(self, outputs: list[Path]):
+        if not outputs:  # handed off to Swirl Studio
+            self._finish("done", "Opening Studio…", 600)
+            return
         msg = f"Saved {outputs[0].name}" if len(outputs) == 1 else f"Saved {len(outputs)} files"
         self._finish("done", msg, 1400)
 

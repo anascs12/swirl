@@ -21,7 +21,7 @@ def test_home_lists_and_filters_tools(app):
     home = Home()
     assert home.grid.count() == len(pdftools.TOOLS)
     home.set_category("Security")
-    assert home.grid.count() == 2
+    assert home.grid.count() == sum(t.category == "Security" for t in pdftools.TOOLS)
     home.set_category("All")
     home.search.setText("compress")
     assert home.grid.count() == 1

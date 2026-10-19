@@ -354,6 +354,17 @@ def text_to_pdf(files: list[Path]) -> list[Path]:
     return out
 
 
+def open_studio(files: list[Path]) -> list[Path]:
+    """Hand the files to Swirl Studio for tools that need settings."""
+    import subprocess
+    import sys
+    from .integrate import launch_command
+    subprocess.Popen([*launch_command(), "--studio", *map(str, files)],
+                     creationflags=0x00000008 if sys.platform == "win32" else 0,  # detached on Windows
+                     start_new_session=sys.platform != "win32")
+    return []
+
+
 # ── Registry ──────────────────────────────────────────────────
 
 ACTIONS: list[Action] = [
@@ -372,6 +383,7 @@ ACTIONS: list[Action] = [
     Action("pdf-split", "Split pages", "tool", {"pdf"}, split_pdf),
     Action("pdf-merge", "Merge", "tool", {"pdf"}, merge_pdfs, multi=True, per_file=False),
     Action("pdf-strip", "Strip metadata", "tool", {"pdf"}, strip_pdf_metadata),
+    Action("pdf-studio", "All PDF tools…", "tool", {"pdf"}, open_studio),
     # Video
     *[Action(f"vid-{s[1:]}", s[1:].upper(), "convert", {"video"}, _ffmpeg_to(s), needs=("ffmpeg",), skip_same_ext=(s,))
       for s in (".mp4", ".webm", ".mov")],
