@@ -46,6 +46,9 @@ Results are always saved **beside the originals** with a new name (`report-compr
 
 ## Install
 
+Download the installer for your system from the
+[latest release](https://github.com/anascs12/swirl/releases/latest).
+
 ### Ubuntu (22.04 and newer)
 
 ```bash
@@ -92,7 +95,7 @@ python -m swirl             # run from source
 Builds: `packaging/linux/build_deb.sh` makes the `.deb`; on Windows, PyInstaller with
 `packaging/swirl.spec` and then Inno Setup with `packaging/windows/swirl.iss`.
 GitHub Actions runs the tests on Ubuntu and Windows on every push, builds both installers,
-and publishes them as a release when you push a tag like `v0.1.3`.
+and publishes them as the GitHub release for the version in `swirl/__init__.py`.
 
 ## Contributing
 
