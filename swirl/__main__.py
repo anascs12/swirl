@@ -27,17 +27,26 @@ def _restore_env_for_children():
     restore_system_environment()
 
 
-def _prefer_xwayland():
+def _prefer_xwayland(for_wheel: bool = True):
     _restore_env_for_children()
     _log_qt_messages()
-    # Native Wayland does not let apps place a window at the pointer, so run
-    # through XWayland when it is available (the user can still override this).
-    if sys.platform.startswith("linux") and os.environ.get("WAYLAND_DISPLAY") and "QT_QPA_PLATFORM" not in os.environ:
-        if os.environ.get("DISPLAY"):
-            os.environ["QT_QPA_PLATFORM"] = "xcb"
+    # On Wayland: the wheel needs X11 (XWayland) to appear at the pointer, the
+    # Studio is happiest native. Each lists a fallback, so if one display system
+    # fails to start Qt uses the other instead of aborting. A value the user set
+    # themselves is left alone; ours (marked) is re-decided by child processes.
+    if not sys.platform.startswith("linux") or not os.environ.get("WAYLAND_DISPLAY"):
+        return
+    if "QT_QPA_PLATFORM" in os.environ and not os.environ.get("SWIRL_AUTO_QPA"):
+        return
+    if os.environ.get("DISPLAY"):
+        os.environ["QT_QPA_PLATFORM"] = "xcb;wayland" if for_wheel else "wayland;xcb"
+    else:
+        os.environ["QT_QPA_PLATFORM"] = "wayland"
+    os.environ["SWIRL_AUTO_QPA"] = "1"
 
 
 BUBBLE_CMD = "::swirl-show-bubble::"  # sent instead of file paths to ask the running Swirl for a bubble
+STUDIO_CMD = "::swirl-open-studio::"  # the files that follow open in Swirl Studio
 
 
 def _start_crash_log() -> Path | None:
@@ -146,7 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     _prefer_xwayland()
     import tempfile
     import time
-    from PySide6.QtCore import QLockFile, QTimer
+    from PySide6.QtCore import QLockFile, Qt, QTimer
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
     from PySide6.QtWidgets import QApplication
 
@@ -200,16 +209,37 @@ def main(argv: list[str] | None = None) -> int:
         if not batch:
             return
         wheel = Wheel(batch)
+        wheel.open_studio = open_studio_window
         open_wheels.append(wheel)
 
         def closed():
             open_wheels.remove(wheel)
-            if not args.bubble and not open_wheels and not pending:
-                app.quit()
+            quit_if_idle()
         wheel.finished.connect(closed)
         wheel.show()
         wheel.raise_()
         wheel.activateWindow()
+
+    studios: list = []
+
+    def quit_if_idle():
+        if not args.bubble and not open_wheels and not studios and not pending:
+            app.quit()
+
+    def open_studio_window(paths):
+        from .studio import Studio
+        window = Studio([Path(p) for p in paths])
+        window.setAttribute(Qt.WA_DeleteOnClose)
+        studios.append(window)
+
+        def gone(*_):
+            if window in studios:
+                studios.remove(window)
+            QTimer.singleShot(0, quit_if_idle)
+        window.destroyed.connect(gone)
+        window.show()
+        window.raise_()
+        window.activateWindow()
 
     def on_connection():
         sock = server.nextPendingConnection()
@@ -219,6 +249,10 @@ def main(argv: list[str] | None = None) -> int:
             if BUBBLE_CMD in lines:
                 show_bubble()
                 lines.remove(BUBBLE_CMD)
+            if STUDIO_CMD in lines:
+                lines.remove(STUDIO_CMD)
+                open_studio_window(lines)
+                return
             pending.extend(Path(p) for p in lines)
             if pending:
                 gather.start()  # wait briefly for files from other launches
@@ -279,7 +313,7 @@ def _run_cli(args) -> int:
 
 
 def _run_studio(files: list[Path], tool_id: str | None) -> int:
-    _prefer_xwayland()
+    _prefer_xwayland(for_wheel=False)
     from PySide6.QtGui import QIcon
     from PySide6.QtWidgets import QApplication
     from . import pdftools
@@ -288,6 +322,15 @@ def _run_studio(files: list[Path], tool_id: str | None) -> int:
     if tool_id and tool_id not in pdftools.TOOL_BY_ID:
         print(f"Unknown tool '{tool_id}'. Tools: {', '.join(pdftools.TOOL_BY_ID)}", file=sys.stderr)
         return 2
+    if files:
+        from PySide6.QtNetwork import QLocalSocket
+        sock = QLocalSocket()
+        sock.connectToServer(f"swirl-{getpass.getuser()}")
+        if sock.waitForConnected(150):
+            sock.write("\n".join([STUDIO_CMD, *map(str, files)]).encode("utf-8"))
+            sock.waitForBytesWritten(500)
+            sock.disconnectFromServer()
+            return 0
     app = QApplication(sys.argv[:1])
     app.setApplicationName("Swirl Studio")
     app.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "swirl-256.png")))

@@ -1,7 +1,7 @@
 ; Inno Setup script: builds dist\SwirlSetup-<version>.exe from dist\swirl\
-; iscc /DVersion=0.1.0 packaging\windows\swirl.iss
+; iscc /DVersion=0.1.3 packaging\windows\swirl.iss
 #ifndef Version
-  #define Version "0.1.0"
+  #define Version "0.1.3"
 #endif
 
 [Setup]

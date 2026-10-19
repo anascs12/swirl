@@ -49,7 +49,7 @@ Results are always saved **beside the originals** with a new name (`report-compr
 ### Ubuntu (22.04 and newer)
 
 ```bash
-sudo apt install ./swirl_0.1.2_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
+sudo apt install ./swirl_0.1.3_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
 swirl --install                              # adds "Convert with Swirl" under Scripts in the right-click menu
 ```
 
@@ -60,7 +60,7 @@ For OCR, also run `sudo apt install tesseract-ocr`.
 
 ### Windows 10 and 11
 
-Run **SwirlSetup-0.1.0.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
+Run **SwirlSetup-0.1.3.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
 under *Show more options*) and to *Send to*. Video and audio conversions need FFmpeg
 (`winget install Gyan.FFmpeg`), Office conversions need [LibreOffice](https://www.libreoffice.org/),
 OCR needs [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
@@ -92,7 +92,24 @@ python -m swirl             # run from source
 Builds: `packaging/linux/build_deb.sh` makes the `.deb`; on Windows, PyInstaller with
 `packaging/swirl.spec` and then Inno Setup with `packaging/windows/swirl.iss`.
 GitHub Actions runs the tests on Ubuntu and Windows on every push, builds both installers,
-and publishes them as a release when you push a tag like `v0.1.0`.
+and publishes them as a release when you push a tag like `v0.1.3`.
+
+## Contributing
+
+Issues and pull requests are welcome. Run `python -m pytest` before sending a change; GitHub Actions
+runs the same tests on Ubuntu and Windows. If Swirl crashes, the reason is written to
+`~/.cache/swirl/swirl.log` (Windows: `%LOCALAPPDATA%\Swirl\swirl.log`); please attach its last lines.
+
+## Contributors
+
+| | |
+|---|---|
+| [Anas Khan](https://github.com/anascs12) | Creator, PDF toolkit and packaging |
+| [Muneeba Saleem](https://github.com/muneebacs12) | Co-creator, testing and design |
+
+## License
+
+[MIT](LICENSE). Free to use, change and share, including commercially.
 
 ## Privacy
 
@@ -100,9 +117,9 @@ All processing happens locally. Swirl has no network code, accounts, telemetry o
 
 ## Third-party software
 
-Swirl is built on open-source libraries whose licences allow use in a paid product:
+Swirl is built on open-source libraries, all compatible with its MIT licence:
 Qt for Python / PySide6 (LGPL-3.0, dynamically linked), Pillow (MIT-CMU), pypdf (BSD-3),
 pypdfium2 and PDFium (Apache-2.0 / BSD-3), reportlab (BSD), python-pptx (MIT), pdfplumber and
 pdfminer.six (MIT), openpyxl (MIT), cryptography (Apache-2.0 / BSD).
 FFmpeg, LibreOffice, Pandoc, Tesseract and Ghostscript are separate programs that Swirl runs if
-they are installed; they are not bundled. PyMuPDF (AGPL) is deliberately **not** used.
+they are installed; they are not bundled.

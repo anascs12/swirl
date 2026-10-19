@@ -57,6 +57,7 @@ class Wheel(QWidget):
         self.setMouseTracking(True)
         self.setFixedSize(SIZE, SIZE)
         self.setWindowTitle("Swirl")
+        self.open_studio = None   # set by the app: opens Swirl Studio in this process
 
         self.files = files
         self.group = "convert"
@@ -348,6 +349,11 @@ class Wheel(QWidget):
     def choose(self, index: int):
         action = self.items[index]
         if not action.available():
+            return
+        if action.id == "pdf-studio" and getattr(self, "open_studio", None):
+            # Open the Studio in this running Swirl instead of a new process.
+            self.open_studio(self.files)
+            self.close()
             return
         self.state = "working"
         self.setCursor(Qt.BusyCursor)
