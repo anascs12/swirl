@@ -22,7 +22,13 @@ from pathlib import Path
 from . import __version__
 
 
+def _restore_env_for_children():
+    from .tools import restore_system_environment
+    restore_system_environment()
+
+
 def _prefer_xwayland():
+    _restore_env_for_children()
     # Native Wayland does not let apps place a window at the pointer, so run
     # through XWayland when it is available (the user can still override this).
     if sys.platform.startswith("linux") and os.environ.get("WAYLAND_DISPLAY") and "QT_QPA_PLATFORM" not in os.environ:

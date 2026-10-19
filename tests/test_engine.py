@@ -145,3 +145,16 @@ def test_missing_tool_is_reported(monkeypatch, tmp_path):
     monkeypatch.setattr(tools, "find", lambda name: None)
     with pytest.raises(tools.ToolError, match="needs ffmpeg"):
         engine.perform(engine.BY_ID["vid-mp3"], [tmp_path / "x.mp4"])
+
+
+def test_child_processes_get_system_libraries(monkeypatch):
+    """A packaged Swirl must not hand its bundled libraries to LibreOffice & co."""
+    import sys
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/opt/swirl/_internal")
+    monkeypatch.setenv("LD_LIBRARY_PATH_ORIG", "/usr/local/lib")
+    assert tools.child_env()["LD_LIBRARY_PATH"] == "/usr/local/lib"
+    monkeypatch.delenv("LD_LIBRARY_PATH_ORIG")
+    assert "LD_LIBRARY_PATH" not in tools.child_env()
+    monkeypatch.setattr(sys, "frozen", False)
+    assert tools.child_env()["LD_LIBRARY_PATH"] == "/opt/swirl/_internal"   # dev runs untouched

@@ -359,7 +359,12 @@ def open_studio(files: list[Path]) -> list[Path]:
     import subprocess
     import sys
     from .integrate import launch_command
-    subprocess.Popen([*launch_command(), "--studio", *map(str, files)],
+    from .tools import child_env
+    env = child_env()
+    if getattr(sys, "frozen", False):
+        # Starting ourselves again: keep the bundle's libraries.
+        env = dict(__import__("os").environ)
+    subprocess.Popen([*launch_command(), "--studio", *map(str, files)], env=env,
                      creationflags=0x00000008 if sys.platform == "win32" else 0,  # detached on Windows
                      start_new_session=sys.platform != "win32")
     return []

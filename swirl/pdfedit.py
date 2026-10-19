@@ -214,7 +214,7 @@ def ocr_languages() -> list[str]:
     if not exe:
         return []
     import subprocess
-    out = subprocess.run([exe, "--list-langs"], capture_output=True, text=True).stdout.splitlines()
+    out = subprocess.run([exe, "--list-langs"], capture_output=True, text=True, env=tools.child_env()).stdout.splitlines()
     return [l.strip() for l in out[1:] if l.strip() and l.strip() != "osd"]
 
 
