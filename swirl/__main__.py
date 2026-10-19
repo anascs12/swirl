@@ -36,6 +36,39 @@ def _prefer_xwayland():
             os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
+BUBBLE_CMD = "::swirl-show-bubble::"  # sent instead of file paths to ask the running Swirl for a bubble
+
+
+def _start_crash_log() -> Path | None:
+    """Record crashes (including native ones inside Qt or PDFium) in
+    ~/.cache/swirl/swirl.log (Windows: %LOCALAPPDATA%\\Swirl), so problems on users' machines
+    can be diagnosed."""
+    import faulthandler
+    import platform
+    import time
+    import traceback
+    base = Path(os.environ.get("LOCALAPPDATA", "")) / "Swirl" if sys.platform == "win32" \
+        else Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "swirl"
+    try:
+        base.mkdir(parents=True, exist_ok=True)
+        log = base / "swirl.log"
+        if log.exists() and log.stat().st_size > 512_000:
+            log.replace(base / "swirl.old.log")
+        fh = open(log, "a", buffering=1, encoding="utf-8")
+    except OSError:
+        return None
+    fh.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')} swirl {__version__} · {platform.platform()} · "
+             f"session={os.environ.get('XDG_SESSION_TYPE', '?')} · args={sys.argv[1:]}\n")
+    faulthandler.enable(fh, all_threads=True)
+
+    def excepthook(kind, value, tb):
+        fh.write("".join(traceback.format_exception(kind, value, tb)))
+        sys.__excepthook__(kind, value, tb)
+    sys.excepthook = excepthook
+    _start_crash_log.file = fh
+    return log
+
+
 def _exec(app) -> int:
     """Run the event loop, then close windows before Python tears Qt down
     (otherwise Qt can crash on exit)."""
@@ -67,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--list", action="store_true", help="list the PDF tools and their options")
     parser.add_argument("--version", action="version", version=f"swirl {__version__}")
     args = parser.parse_args(argv)
+    _start_crash_log()
 
     if args.install or args.uninstall:
         from . import integrate
@@ -105,7 +139,8 @@ def main(argv: list[str] | None = None) -> int:
         sock.connectToServer(server_name)
         if not sock.waitForConnected(150):
             return False
-        sock.write("\n".join(map(str, files)).encode("utf-8"))
+        lines = [*map(str, files), *([BUBBLE_CMD] if args.bubble else [])]
+        sock.write("\n".join(lines).encode("utf-8"))
         sock.waitForBytesWritten(500)
         sock.disconnectFromServer()
         return True
@@ -115,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
     lock = QLockFile(str(Path(tempfile.gettempdir()) / f"{server_name}.lock"))
     lock.setStaleLockTime(0)  # a lock left by a crashed process is detected by its PID
     if not lock.tryLock(0):
-        if files:
+        if files or args.bubble:
             deadline = time.monotonic() + 3
             while time.monotonic() < deadline:
                 if hand_over():
@@ -162,19 +197,34 @@ def main(argv: list[str] | None = None) -> int:
         sock = server.nextPendingConnection()
 
         def read():
-            data = bytes(sock.readAll()).decode("utf-8")
-            pending.extend(Path(p) for p in data.splitlines() if p.strip())
-            gather.start()  # wait briefly for files from other launches
+            lines = [p for p in bytes(sock.readAll()).decode("utf-8").splitlines() if p.strip()]
+            if BUBBLE_CMD in lines:
+                show_bubble()
+                lines.remove(BUBBLE_CMD)
+            pending.extend(Path(p) for p in lines)
+            if pending:
+                gather.start()  # wait briefly for files from other launches
         sock.readyRead.connect(read)
 
     server.newConnection.connect(on_connection)
     gather.timeout.connect(show_wheel)
 
-    if args.bubble:
+    bubbles: list = []
+
+    def show_bubble():
+        # The bubble keeps this Swirl running after wheels close.
+        args.bubble = True
+        if bubbles:
+            bubbles[0].show(); bubbles[0].raise_()
+            return
         from .bubble import Bubble
         bubble = Bubble()
         bubble.files_dropped.connect(lambda fs: (pending.extend(fs), gather.start(0)))
         bubble.show()
+        bubbles.append(bubble)
+
+    if args.bubble:
+        show_bubble()
     if files:
         gather.start()
 

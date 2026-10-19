@@ -49,11 +49,13 @@ Results are always saved **beside the originals** with a new name (`report-compr
 ### Ubuntu (22.04 and newer)
 
 ```bash
-sudo apt install ./swirl_0.1.0_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
-swirl --install                              # adds "Convert with Swirl" to the right-click menu
+sudo apt install ./swirl_0.1.2_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
+swirl --install                              # adds "Convert with Swirl" under Scripts in the right-click menu
 ```
 
-In Files (Nautilus) the entry is under **Scripts**; in Nemo and Dolphin it is in the main menu.
+Open **Swirl Studio** from the app menu. In Files, right-click a file → **Open With… → Swirl Studio**
+(or *Convert with Swirl* for the wheel). After `swirl --install` there is also **Scripts → Convert
+with Swirl** (restart Files once with `nautilus -q`); in Nemo and Dolphin it is in the main menu.
 For OCR, also run `sudo apt install tesseract-ocr`.
 
 ### Windows 10 and 11
