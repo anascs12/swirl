@@ -30,6 +30,19 @@ def _prefer_xwayland():
             os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
+def _exec(app) -> int:
+    """Run the event loop, then close windows before Python tears Qt down
+    (otherwise Qt can crash on exit)."""
+    import gc
+    code = app.exec()
+    for w in app.topLevelWidgets():
+        w.close()
+        w.deleteLater()
+    app.processEvents()
+    gc.collect()
+    return code
+
+
 def _natural_key(path: Path):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", path.name)]
 
@@ -159,7 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     if files:
         gather.start()
 
-    return app.exec()
+    return _exec(app)
 
 
 def _run_cli(args) -> int:
@@ -206,7 +219,7 @@ def _run_studio(files: list[Path], tool_id: str | None) -> int:
     app.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "swirl-256.png")))
     window = Studio(files, tool_id)
     window.show()
-    return app.exec()
+    return _exec(app)
 
 
 if __name__ == "__main__":
