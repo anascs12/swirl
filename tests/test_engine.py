@@ -152,12 +152,12 @@ def test_mixed_images_and_pdfs(tmp_path, photo):
 
 
 @needs_office
+@needs_pandoc
 def test_mixed_word_and_pdf_merge(tmp_path):
-    from docx import Document
-    doc = Document()
-    doc.add_paragraph("Hello from Word")
-    word = tmp_path / "Doc2.docx"
-    doc.save(word)
+    md = tmp_path / "Doc2.md"
+    md.write_text("Hello from Word\n")
+    word = engine.perform(engine.BY_ID["txt-docx"], [md])[0]
+    md.unlink()
     pdf = make_pdf(tmp_path / "Doc2.pdf", 2)
     merged = engine.perform(engine.BY_ID["mix-merge"], [word, pdf])[0]
     pages = PdfReader(merged).pages
