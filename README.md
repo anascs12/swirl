@@ -40,7 +40,7 @@ set the options, done.
 | **From PDF** | JPG / PNG · Word · PowerPoint · Excel (tables become sheets, numbers stay numbers) · Markdown · Text · Extract images · PDF/A |
 | **To PDF** | JPG and other images · Word · PowerPoint · Excel · HTML |
 | **Review** | Compare two PDFs page by page (text changes and visual changes) |
-| **Wheel conversions** | Images (PNG, JPG, WebP, GIF, BMP, TIFF, ICO, PDF) · Video (MP4, WebM, MOV, GIF, MP3, compress, remove audio) · Audio (MP3, WAV, OGG, FLAC, M4A) · Documents (PDF, DOCX, ODT) · Markdown and HTML |
+| **Wheel conversions** | Images (PNG, JPG, WebP, GIF, BMP, TIFF, ICO, PDF) · Video (MP4, WebM, MOV, GIF, MP3, compress, remove audio) · Audio (MP3, WAV, OGG, FLAC, M4A) · Documents (PDF, DOCX, ODT) · Markdown and HTML · Jupyter notebooks (PDF, HTML, DOCX, Markdown, Python script) |
 
 Results are always saved **beside the originals** with a new name (`report-compressed.pdf`,
 `photo (1).png`, …). Swirl never overwrites or changes your files.
@@ -53,7 +53,7 @@ Download the installer for your system from the
 ### Ubuntu (22.04 and newer)
 
 ```bash
-sudo apt install ./swirl_0.1.4_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
+sudo apt install ./swirl_0.1.5_amd64.deb     # also suggests FFmpeg, LibreOffice and Pandoc
 swirl --install                              # adds "Convert with Swirl" under Scripts in the right-click menu
 ```
 
@@ -64,7 +64,7 @@ For OCR, also run `sudo apt install tesseract-ocr`.
 
 ### Windows 10 and 11
 
-Run **SwirlSetup-0.1.4.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
+Run **SwirlSetup-0.1.5.exe**. It adds *Convert with Swirl* to the right-click menu (on Windows 11,
 under *Show more options*) and to *Send to*. Video and audio conversions need FFmpeg
 (`winget install Gyan.FFmpeg`), Office conversions need [LibreOffice](https://www.libreoffice.org/),
 OCR needs [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki).
@@ -89,7 +89,7 @@ swirl --run protect report.pdf --set password=s3cret --set confirm=s3cret
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-python -m pytest            # 60 tests: engine, toolkit, editor, Studio and wheel
+python -m pytest            # 62 tests: engine, toolkit, editor, Studio and wheel
 python -m swirl             # run from source
 ```
 

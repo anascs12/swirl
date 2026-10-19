@@ -36,7 +36,7 @@ Comment=Convert or compress these files from the Swirl wheel
 Exec=/usr/bin/swirl %F
 Icon=swirl
 NoDisplay=true
-MimeType=application/pdf;image/png;image/jpeg;image/webp;image/gif;image/bmp;image/tiff;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/msword;application/vnd.oasis.opendocument.text;application/rtf;application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel;text/html;text/markdown;text/plain;video/mp4;video/quicktime;video/x-matroska;video/webm;audio/mpeg;audio/x-wav;audio/ogg;audio/flac;
+MimeType=application/pdf;image/png;image/jpeg;image/webp;image/gif;image/bmp;image/tiff;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/msword;application/vnd.oasis.opendocument.text;application/rtf;application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.ms-powerpoint;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel;text/html;text/markdown;text/plain;video/mp4;video/quicktime;video/x-matroska;video/webm;audio/mpeg;audio/x-wav;audio/ogg;audio/flac;application/x-ipynb+json;
 Terminal=false
 DESKTOP
 

@@ -23,6 +23,7 @@ KINDS = {
     "audio":    {".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".opus", ".wma"},
     "document": {".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp", ".xlsx", ".xls", ".ods"},
     "text":     {".txt", ".md", ".markdown", ".html", ".htm"},
+    "notebook": {".ipynb"},
 }
 
 
@@ -341,7 +342,7 @@ def text_to_pdf(files: list[Path]) -> list[Path]:
     """Text → PDF through LibreOffice (Pandoc's PDF route needs a LaTeX install)."""
     out = []
     for src in files:
-        if src.suffix.lower() in (".md", ".markdown") and tools.find("pandoc"):
+        if src.suffix.lower() in (".md", ".markdown", ".ipynb") and tools.find("pandoc"):
             with tempfile.TemporaryDirectory() as tmp:
                 html = Path(tmp, src.stem + ".html")
                 tools.run([tools.find("pandoc"), str(src), "-s", "-o", str(html)])
@@ -351,6 +352,39 @@ def text_to_pdf(files: list[Path]) -> list[Path]:
                 out.append(dest)
         else:
             out.extend(_office_to("pdf", ".pdf")([src]))
+    return out
+
+
+def _notebook_to(suffix: str, writer: str | None = None):
+    def run(files: list[Path]) -> list[Path]:
+        out = []
+        for src in files:
+            dest = beside(src, suffix)
+            # Markdown stays plain (no metadata block or cell wrappers); other formats are standalone.
+            style = ["-t", writer] if writer else ["-s"]
+            tools.run([tools.find("pandoc"), str(src), *style, "-o", str(dest)])
+            out.append(dest)
+        return out
+    return run
+
+
+def notebook_to_python(files: list[Path]) -> list[Path]:
+    """The notebook's code as a script; Markdown cells become comments."""
+    import json
+    out = []
+    for src in files:
+        cells = json.loads(src.read_text(encoding="utf-8")).get("cells", [])
+        parts = []
+        for cell in cells:
+            text = cell.get("source", "")
+            text = "".join(text) if isinstance(text, list) else text
+            if cell.get("cell_type") == "code":
+                parts.append("# %%\n" + text.rstrip())
+            elif text.strip():
+                parts.append("# %% [markdown]\n" + "\n".join("# " + line if line else "#" for line in text.rstrip().splitlines()))
+        dest = beside(src, ".py")
+        dest.write_text("\n\n".join(parts) + "\n", encoding="utf-8")
+        out.append(dest)
     return out
 
 
@@ -372,7 +406,7 @@ def open_studio(files: list[Path]) -> list[Path]:
 
 # ── Mixed selections (e.g. a Word file and two PDFs) ──────────
 
-PDF_ABLE = {"pdf", "image", "document", "text"}
+PDF_ABLE = {"pdf", "image", "document", "text", "notebook"}
 
 
 def _to_pdf(src: Path, workdir: Path) -> Path:
@@ -380,7 +414,7 @@ def _to_pdf(src: Path, workdir: Path) -> Path:
     kind = kind_of(src)
     if kind == "pdf":
         return src
-    if kind in ("document", "text") and not tools.find("soffice"):
+    if kind in ("document", "text", "notebook") and not tools.find("soffice"):
         raise tools.ToolError(f"{src.name} needs LibreOffice installed")
     copy = free_path(workdir, src.stem, src.suffix)
     shutil.copy2(src, copy)
@@ -388,7 +422,7 @@ def _to_pdf(src: Path, workdir: Path) -> Path:
         dest = beside(copy, ".pdf")
         _open_image(copy).convert("RGB").save(dest, "PDF", resolution=150)
         return dest
-    return (text_to_pdf if kind == "text" else _office_to("pdf", ".pdf"))([copy])[0]
+    return (_office_to("pdf", ".pdf") if kind == "document" else text_to_pdf)([copy])[0]
 
 
 def mixed_to_pdf(files: list[Path]) -> list[Path]:
@@ -452,6 +486,12 @@ ACTIONS: list[Action] = [
     # Text
     Action("txt-pdf", "PDF", "convert", {"text"}, text_to_pdf, needs=("soffice",)),
     Action("txt-docx", "DOCX", "convert", {"text"}, _pandoc_to(".docx"), needs=("pandoc",)),
+    # Jupyter notebooks
+    Action("nb-pdf", "PDF", "convert", {"notebook"}, text_to_pdf, needs=("pandoc", "soffice")),
+    Action("nb-html", "HTML", "convert", {"notebook"}, _notebook_to(".html"), needs=("pandoc",)),
+    Action("nb-docx", "DOCX", "convert", {"notebook"}, _notebook_to(".docx"), needs=("pandoc",)),
+    Action("nb-md", "Markdown", "convert", {"notebook"}, _notebook_to(".md", "gfm-raw_html"), needs=("pandoc",)),
+    Action("nb-py", "Python", "convert", {"notebook"}, notebook_to_python),
     # Mixed selections
     Action("mix-pdf", "PDF", "convert", {"mixed"}, mixed_to_pdf),
     Action("mix-merge", "Merge into one PDF", "tool", {"mixed"}, mixed_merge, multi=True, per_file=False),

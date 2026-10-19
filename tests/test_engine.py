@@ -165,6 +165,34 @@ def test_mixed_word_and_pdf_merge(tmp_path):
     assert sorted(p.name for p in tmp_path.iterdir()) == ["Doc2-merged.pdf", "Doc2.docx", "Doc2.pdf"]
 
 
+NOTEBOOK = ('{"cells": [{"cell_type": "markdown", "metadata": {}, "source": ["# Sales\\n", "Quarterly numbers"]},'
+            ' {"cell_type": "code", "metadata": {}, "execution_count": 1, "outputs": [],'
+            ' "source": ["total = 1 + 2\\n", "print(total)"]}],'
+            ' "metadata": {"language_info": {"name": "python"}}, "nbformat": 4, "nbformat_minor": 5}')
+
+
+def test_notebook_to_python(tmp_path):
+    nb = tmp_path / "Untitled.ipynb"
+    nb.write_text(NOTEBOOK)
+    assert engine.kind_of(nb) == "notebook"
+    assert {"PDF", "HTML", "DOCX", "Markdown", "Python"} == {a.label for a in engine.actions_for([nb])}
+    script = engine.perform(engine.BY_ID["nb-py"], [nb])[0]
+    assert script.name == "Untitled.py"
+    assert script.read_text() == "# %% [markdown]\n# # Sales\n# Quarterly numbers\n\n# %%\ntotal = 1 + 2\nprint(total)\n"
+    compile(script.read_text(), "x", "exec")
+
+
+@needs_office
+@needs_pandoc
+def test_notebook_to_pdf_and_markdown(tmp_path):
+    nb = tmp_path / "Untitled.ipynb"
+    nb.write_text(NOTEBOOK)
+    pdf = engine.perform(engine.BY_ID["nb-pdf"], [nb])[0]
+    assert "Quarterly numbers" in PdfReader(pdf).pages[0].extract_text()
+    md = engine.perform(engine.BY_ID["nb-md"], [nb])[0]
+    assert "print(total)" in md.read_text()
+
+
 def test_missing_tool_is_reported(monkeypatch, tmp_path):
     monkeypatch.setattr(tools, "find", lambda name: None)
     with pytest.raises(tools.ToolError, match="needs ffmpeg"):
