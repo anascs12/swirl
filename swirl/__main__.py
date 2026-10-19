@@ -7,6 +7,7 @@
     swirl --install        add "Convert with Swirl" to the file manager
     swirl --uninstall      remove it again
     swirl --check          show which conversion engines are installed
+    swirl --run TOOL FILE... [--set key=value]   run a Studio tool without a window
 """
 
 from __future__ import annotations
@@ -42,6 +43,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--install", action="store_true", help="add Swirl to the file manager's right-click menu")
     parser.add_argument("--uninstall", action="store_true", help="remove Swirl from the right-click menu")
     parser.add_argument("--check", action="store_true", help="show which conversion engines are installed")
+    parser.add_argument("--run", metavar="TOOL", help="run a PDF tool from the command line (see --list)")
+    parser.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="an option for --run")
+    parser.add_argument("--list", action="store_true", help="list the PDF tools and their options")
     parser.add_argument("--version", action="version", version=f"swirl {__version__}")
     args = parser.parse_args(argv)
 
@@ -52,11 +56,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.check:
         from .tools import available_summary
-        names = {"ffmpeg": "FFmpeg (video, audio)", "soffice": "LibreOffice (documents)", "pandoc": "Pandoc (Markdown, HTML)"}
+        names = {"ffmpeg": "FFmpeg (video, audio)", "soffice": "LibreOffice (Office ↔ PDF, PDF/A)",
+                 "pandoc": "Pandoc (Markdown, HTML)", "tesseract": "Tesseract (OCR)"}
         for key, ok in available_summary().items():
             print(f"{'✓' if ok else '✗'} {names[key]}")
         print("✓ Images and PDFs (built in)")
         return 0
+
+    if args.list or args.run:
+        return _run_cli(args)
 
     files = [f.resolve() for f in args.files if f.exists() and f.is_file()]
     if args.tool or (not files and not args.bubble):
@@ -152,6 +160,35 @@ def main(argv: list[str] | None = None) -> int:
         gather.start()
 
     return app.exec()
+
+
+def _run_cli(args) -> int:
+    from . import pdftools
+    if args.list:
+        for t in pdftools.TOOLS:
+            opts = ", ".join(f"{o.key}={o.default}" for o in t.options)
+            print(f"{t.id:<11} {t.title:<20} {opts}")
+        return 0
+    tool = pdftools.TOOL_BY_ID.get(args.run)
+    if tool is None or tool.page:
+        print(f"Unknown or visual-only tool '{args.run}'. See swirl --list.", file=sys.stderr)
+        return 2
+    opts = {}
+    for item in args.set:
+        key, _, value = item.partition("=")
+        opt = next((o for o in tool.options if o.key == key), None)
+        if opt is None:
+            print(f"{tool.id} has no option '{key}'", file=sys.stderr)
+            return 2
+        opts[key] = (value.lower() in ("1", "true", "yes")) if opt.type == "bool" else \
+            int(value) if opt.type == "int" else float(value) if opt.type == "float" else value
+    try:
+        for out in pdftools.run_tool(tool, [f.resolve() for f in args.files], opts):
+            print(out)
+    except Exception as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 
 def _run_studio(files: list[Path], tool_id: str | None) -> int:

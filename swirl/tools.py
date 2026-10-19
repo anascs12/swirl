@@ -57,4 +57,4 @@ def run(args: list[str], timeout: int = 900) -> None:
 
 def available_summary() -> dict[str, bool]:
     """Which optional engines are installed (shown by `swirl --check`)."""
-    return {name: bool(find(name)) for name in ("ffmpeg", "soffice", "pandoc")}
+    return {name: bool(find(name)) for name in ("ffmpeg", "soffice", "pandoc", "tesseract")}

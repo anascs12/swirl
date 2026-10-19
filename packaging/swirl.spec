@@ -17,9 +17,9 @@ a = Analysis(
 # Drop Qt modules Swirl never loads (QML, Quick, WebEngine, virtual keyboard…): ~60 MB smaller.
 _UNUSED = ("Qt6Qml", "Qt6Quick", "Qt6VirtualKeyboard", "Qt6WebEngine", "Qt6Pdf", "Qt63D", "Qt6Multimedia",
            "Qt6Charts", "Qt6DataVisualization", "Qt6ShaderTools", "Qt6Designer", "qml", "QtQuick", "virtualkeyboard",
-           "Qt6Sql", "Qt6Test", "Qt6OpenGLWidgets")
+           "Qt6Sql", "Qt6Test", "Qt6OpenGLWidgets", "libqgtk3", "libgtk-3", "libgdk-3")
 a.binaries = [b for b in a.binaries if not any(u in b[0] for u in _UNUSED)]
-a.datas = [d for d in a.datas if not any(u in d[0] for u in ("qml", "translations/qtwebengine", "Qt6Quick"))]
+a.datas = [d for d in a.datas if not any(u in d[0].replace("\\", "/") for u in ("qml", "Qt/translations", "Qt6Quick"))]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
