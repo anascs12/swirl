@@ -6,7 +6,8 @@ import math
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetricsF, QGuiApplication, QPainter, QPainterPath, QPen
+from PySide6.QtGui import (QColor, QCursor, QFont, QFontMetricsF, QGuiApplication, QImage, QLinearGradient, QPainter,
+                           QPainterPath, QPen, QPixmap, QRadialGradient)
 from PySide6.QtWidgets import QWidget
 
 from . import engine
@@ -15,13 +16,16 @@ SIZE = 400                 # window is a square; the wheel is centred in it
 R_OUTER, R_INNER, R_CORE = 176, 92, 78
 GAP_DEG = 2.2
 
-# Palette (dark glass)
-BG = QColor(24, 24, 30, 236)
-RING = QColor(44, 44, 54, 240)
-RING_HOVER = QColor(124, 92, 255)
-RING_DISABLED = QColor(36, 36, 42, 220)
+# Palette: frosted dark glass. The blurred desktop shows through every layer.
+GLASS_TINT = QColor(16, 16, 26, 140)          # over the blurred backdrop
+GLASS_FALLBACK = QColor(22, 22, 32, 205)      # when the screen can't be captured
+RING = QColor(255, 255, 255, 22)
+RING_HOVER = QColor(124, 92, 255, 190)
+RING_DISABLED = QColor(255, 255, 255, 8)
+CORE = QColor(255, 255, 255, 26)
+BLUR_RADIUS = 22
 TEXT = QColor(242, 242, 247)
-TEXT_DIM = QColor(150, 150, 165)
+TEXT_DIM = QColor(205, 205, 220)
 OK = QColor(52, 199, 89)
 ERR = QColor(255, 99, 99)
 
@@ -65,6 +69,7 @@ class Wheel(QWidget):
 
         self._spinner = QTimer(self, interval=30, timeout=self._tick)
         self._place_at_cursor()
+        self._backdrop = self._capture_backdrop()
 
     # ── setup ────────────────────────────────────────────────
     def _pick_group(self):
@@ -91,6 +96,36 @@ class Wheel(QWidget):
         x = min(max(pos.x() - SIZE // 2, area.left()), area.right() - SIZE)
         y = min(max(pos.y() - SIZE // 2, area.top()), area.bottom() - SIZE)
         self.move(x, y)
+
+    def _capture_backdrop(self) -> QPixmap | None:
+        """Blurred copy of the screen behind the wheel, for the frosted-glass look.
+
+        Returns None where the screen can't be read (native Wayland, some
+        sandboxes); the wheel then uses a plain translucent tint.
+        """
+        try:
+            from PIL import Image, ImageEnhance, ImageFilter
+            centre = self.geometry().center()
+            screen = QGuiApplication.screenAt(centre) or QGuiApplication.primaryScreen()
+            g = screen.geometry()
+            shot = screen.grabWindow(0, self.x() - g.x(), self.y() - g.y(), SIZE, SIZE).toImage()
+            if shot.isNull() or shot.width() < 10:
+                return None
+            shot = shot.convertToFormat(QImage.Format_RGB888)
+            pil = Image.frombytes("RGB", (shot.width(), shot.height()), bytes(shot.constBits()),
+                                  "raw", "RGB", shot.bytesPerLine())
+            lo, hi = zip(*pil.getextrema())
+            if max(hi) - min(lo) < 6:          # a blank capture, not the real desktop
+                return None
+            pil = pil.filter(ImageFilter.GaussianBlur(BLUR_RADIUS * shot.width() / SIZE))
+            pil = ImageEnhance.Color(pil).enhance(1.4)   # glass looks richer than the desktop
+            data = pil.tobytes("raw", "RGB")
+            img = QImage(data, pil.width, pil.height, pil.width * 3, QImage.Format_RGB888).copy()
+            pm = QPixmap.fromImage(img)
+            pm.setDevicePixelRatio(shot.width() / SIZE)
+            return pm
+        except Exception:
+            return None
 
     # ── geometry ─────────────────────────────────────────────
     @property
@@ -134,17 +169,41 @@ class Wheel(QWidget):
         p.setRenderHint(QPainter.TextAntialiasing)
         c = self.center
 
-        # soft shadow + base disc
-        for k, alpha in ((14, 18), (8, 26), (3, 34)):
+        # soft shadow
+        for k, alpha in ((16, 14), (9, 22), (4, 30)):
             p.setPen(Qt.NoPen)
             p.setBrush(QColor(0, 0, 0, alpha))
             p.drawEllipse(c, R_OUTER + k, R_OUTER + k)
-        p.setBrush(BG)
-        p.drawEllipse(c, R_OUTER + 2, R_OUTER + 2)
+
+        # frosted body: blurred desktop + tint, clipped to the disc
+        disc = QPainterPath()
+        disc.addEllipse(c, R_OUTER + 2, R_OUTER + 2)
+        p.save()
+        p.setClipPath(disc)
+        if self._backdrop is not None:
+            p.drawPixmap(0, 0, self._backdrop)
+            p.fillPath(disc, GLASS_TINT)
+        else:
+            p.fillPath(disc, GLASS_FALLBACK)
+        # light falling on the top of the glass
+        sheen = QLinearGradient(c.x(), c.y() - R_OUTER, c.x(), c.y() + R_OUTER * 0.2)
+        sheen.setColorAt(0, QColor(255, 255, 255, 46))
+        sheen.setColorAt(1, QColor(255, 255, 255, 0))
+        p.fillPath(disc, sheen)
+        p.restore()
 
         if self.state == "choose":
             self._paint_segments(p)
         self._paint_core(p)
+
+        # bright rim, strongest at the top like a lit glass edge
+        rim = QLinearGradient(c.x(), c.y() - R_OUTER, c.x(), c.y() + R_OUTER)
+        rim.setColorAt(0, QColor(255, 255, 255, 150))
+        rim.setColorAt(0.5, QColor(255, 255, 255, 40))
+        rim.setColorAt(1, QColor(255, 255, 255, 80))
+        p.setBrush(Qt.NoBrush)
+        p.setPen(QPen(rim, 1.4))
+        p.drawEllipse(c, R_OUTER + 1.5, R_OUTER + 1.5)
         p.end()
 
     def _paint_segments(self, p: QPainter):
@@ -155,7 +214,7 @@ class Wheel(QWidget):
         for i, action in enumerate(self.items):
             enabled = action.available()
             fill = RING_HOVER if (i == self.hover and enabled) else (RING if enabled else RING_DISABLED)
-            p.setPen(Qt.NoPen)
+            p.setPen(QPen(QColor(255, 255, 255, 70 if i == self.hover else 28), 1))
             p.setBrush(fill)
             p.drawPath(self._segment_path(i))
 
@@ -184,8 +243,11 @@ class Wheel(QWidget):
 
     def _paint_core(self, p: QPainter):
         c = self.center
-        p.setPen(Qt.NoPen)
-        p.setBrush(QColor(34, 34, 42))
+        core = QRadialGradient(c.x(), c.y() - R_CORE * 0.6, R_CORE * 1.6)
+        core.setColorAt(0, QColor(255, 255, 255, 40))
+        core.setColorAt(1, CORE)
+        p.setPen(QPen(QColor(255, 255, 255, 60), 1))
+        p.setBrush(core)
         p.drawEllipse(c, R_CORE, R_CORE)
 
         title = QFont(self.font()); title.setPixelSize(13); title.setWeight(QFont.DemiBold)
