@@ -100,7 +100,9 @@ and publishes them as the GitHub release for the version in `swirl/__init__.py`.
 
 ## Contributing
 
-Issues and pull requests are welcome. Run `python -m pytest` before sending a change; GitHub Actions
+Issues and pull requests are welcome, and first-time contributors especially. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and a map of the code, then pick a task from
+[good first issues](docs/good-first-issues.md). Run `python -m pytest` before sending a change; GitHub Actions
 runs the same tests on Ubuntu and Windows. If Swirl crashes, the reason is written to
 `~/.cache/swirl/swirl.log` (Windows: `%LOCALAPPDATA%\Swirl\swirl.log`); please attach its last lines.
 

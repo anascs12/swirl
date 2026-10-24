@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a new tool, format or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: Describe the task you're trying to get done, not just the feature.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could Swirl help?
+  - type: checkboxes
+    id: help
+    attributes:
+      label: Contributing
+      options:
+        - label: I'd like to work on this myself

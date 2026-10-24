@@ -1,0 +1,34 @@
+name: Bug report
+description: Something doesn't work or gives the wrong result
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool or conversion
+      placeholder: e.g. Compress PDF, wheel → MP4, Studio → Redact
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: ["Ubuntu / Linux", "Windows 10", "Windows 11", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Swirl version
+      placeholder: e.g. 0.1.5 (shown by `swirl --version` or in the installer name)
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Last lines of `~/.cache/swirl/swirl.log` (Windows `%LOCALAPPDATA%\Swirl\swirl.log`), and `swirl --check` output.
+      render: text
